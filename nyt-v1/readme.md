@@ -117,7 +117,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:alpine
+        image: nginx:1.26
         ports:
         - containerPort: 80
         resources:
@@ -149,6 +149,94 @@ metadata:
   name: nginx-test-ingress
 spec:
   ingressClassName: traefik
+  rules:
+  - host: tt.wwmm.cc
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-test-svc
+            port:
+              number: 80
+```
+
+### Ingress & SSL smoke test
+
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
+
+# vim new config-cert-manager.yaml
+kind: Namespace
+metadata:
+  name: cert-manager
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: <123@email.com>
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - dns01:
+        cloudflare:
+          email: <123@email.com>
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+      selector:
+        dnsZones:
+          - "wwmm.cc"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  api-token: "<cloudflare-api-token>"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-wwmm-cc
+  namespace: default
+spec:
+  secretName: wildcard-wwmm-cc-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "*.wwmm.cc"
+  dnsNames:
+    - "*.wwmm.cc"
+    - "wwmm.cc"
+
+
+# check validation
+kubectl get certificate -A
+kubectl describe certificate wildcard-wwmm-cc
+kubectl describe certificaterequest wildcard-wwmm-cc-1 
+# Status:  True
+# Type:    Ready
+# Message: Certificate fetched from issuer successfully
+
+# update ingress part to nginx-smoke-test.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-test-ingress
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - "tt.wwmm.cc"
+    secretName: wildcard-wwmm-cc-tls
   rules:
   - host: tt.wwmm.cc
     http:
