@@ -2,7 +2,7 @@
 
 ## notes
 
-- docker
+### docker
 
 ```bash
 sudo apt-get -y install --no-install-recommends wget gnupg ca-certificates
@@ -68,7 +68,7 @@ k3s kubectl get pods
 k3s kubectl delete deployment nginx-deployment
 ```
 
-- Kuboard
+### Kuboard
 
 > k8s集群管理
 
@@ -88,6 +88,73 @@ chmod +x ./kuboard-install.sh
 bash ./kuboard-install.sh
 ```
 
-- 登录账号admin 密码 Kuboard123
-- 点击添加集群，选择.kubeconfig方式连接。
-- 然后将/etc/rancher/k3s/k3s.yaml复制到配置文本框里。注意，内容里有一行`server: https://127.0.0.1:6443`，填到Kuboard以后确认前把127.0.0.1修改为你的内网地址
+- 登录账号admin 密码Kuboard123
+- 添加集群`.kubeconfig`方式连接
+- 然后将`/etc/rancher/k3s/k3s.yaml`复制到配置文本框里
+- 注意内容里有一行`server: https://127.0.0.1:6443`，填到Kuboard以后确认前把127.0.0.1修改为你的内网地址
+
+### Smoke test
+
+```bash
+# 1. Nginx Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-test
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-test
+  template:
+    metadata:
+      labels:
+        app: nginx-test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+# 2. Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-test-svc
+  namespace: default
+spec:
+  selector:
+    app: nginx-test
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+# 3. Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-test-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: tt.wwmm.cc
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-test-svc
+            port:
+              number: 80
+```
