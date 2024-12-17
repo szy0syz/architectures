@@ -95,6 +95,9 @@ bash ./kuboard-install.sh
 
 ### Smoke test
 
+> k3s kubectl apply -f nginx-smoke-test.yaml
+> k3s kubectl delete -f nginx-smoke-test.yaml
+
 ```bash
 # 1. Nginx Deployment
 apiVersion: apps/v1
